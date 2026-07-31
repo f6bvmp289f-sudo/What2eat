@@ -198,6 +198,8 @@ sudo systemctl reload nginx
 
 # 修前端 dist 权限（nginx www-data 用户要能读）
 sudo chown -R www-data:www-data $FRONTEND_DIR/dist
+# 修整条路径的 o+x（nginx worker 走路径要 stat 每个目录）
+sudo chmod o+x /home /home/ubuntu /home/ubuntu/what2eat /home/ubuntu/what2eat/frontend /home/ubuntu/what2eat/frontend/dist
 
 # ============================================================
 # 8. 防火墙
