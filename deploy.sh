@@ -196,6 +196,9 @@ sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
 
+# 修前端 dist 权限（nginx www-data 用户要能读）
+sudo chown -R www-data:www-data $FRONTEND_DIR/dist
+
 # ============================================================
 # 8. 防火墙
 # ============================================================
