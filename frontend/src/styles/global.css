@@ -1,0 +1,106 @@
+/**
+ * 开饭 - 全局样式
+ * 包含：reset、基础元素、工具类
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: var(--font-family-base);
+  font-size: var(--text-body-sm);
+  line-height: var(--line-normal);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  min-height: 100%;
+  background: var(--color-bg);
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+/* iOS 点击高亮 */
+* {
+  -webkit-touch-callout: none;
+}
+
+/* 移动端禁止文字选中（除必要场景） */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 文字省略工具类 */
+.ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 全屏容器 */
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  position: relative;
+}

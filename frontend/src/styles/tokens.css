@@ -1,0 +1,139 @@
+/**
+ * 开饭 - 设计 Tokens
+ * 来源：docs/Design.md §2
+ * 所有视觉相关的常量集中维护，组件统一引用 var(--xxx)
+ */
+
+:root {
+  /* === 颜色：主色 === */
+  --color-primary: #FF7A45;
+  --color-primary-light: #FFB088;
+  --color-primary-bg: #FFF1EA;
+
+  /* === 颜色：辅色 === */
+  --color-success: #7BC47F;
+  --color-success-bg: #E8F5E9;
+  --color-warning: #F5A623;
+  --color-error: #E74C3C;
+
+  /* === 颜色：中性 === */
+  --color-text-primary: #2A2520;
+  --color-text-secondary: #6B5E54;
+  --color-text-tertiary: #A8A098;
+  --color-text-disabled: #C4BDB6;
+  --color-text-inverse: #FFFFFF;
+
+  --color-bg: #FFFFFF;
+  --color-bg-card: #FFFFFF;
+  --color-bg-secondary: #FAF7F2;
+  --color-bg-tertiary: #F2EEE8;
+
+  --color-border: #E8E2D8;
+  --color-border-strong: #C4BDB6;
+  --color-divider: #F0EBE3;
+
+  /* === 颜色：半透明（遮罩） === */
+  --color-overlay-dark: rgba(42, 37, 32, 0.5);
+  --color-overlay-modal: rgba(42, 37, 32, 0.85);
+
+  /* === 阴影 === */
+  --shadow-card: 0 2px 8px rgba(42, 37, 32, 0.06);
+  --shadow-card-hover: 0 4px 16px rgba(42, 37, 32, 0.10);
+  --shadow-modal: 0 8px 24px rgba(42, 37, 32, 0.12);
+  --shadow-fab: 0 4px 12px rgba(42, 37, 32, 0.10);
+
+  /* === 字体 === */
+  --font-family-base: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+
+  /* === 字号（60cm-1m 阅读距离，比一般 App 大 1.5-2 倍） === */
+  --text-display: 36px;   /* 教学页超大步骤标题 */
+  --text-h1: 28px;        /* 主标题 */
+  --text-h2: 24px;        /* 菜品名、结果页 */
+  --text-h3: 20px;        /* 步骤小标题、卡片副标题 */
+  --text-body-lg: 24px;   /* 教学页正文 */
+  --text-body: 18px;      /* 列表正文、按钮文字 */
+  --text-body-sm: 16px;   /* 副描述、标签（最小可读） */
+  --text-caption: 14px;   /* 注释、序号小字 */
+  --text-tiny: 12px;      /* 时间戳 */
+
+  /* === 字重 === */
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* === 行高 === */
+  --line-tight: 1.3;
+  --line-normal: 1.5;
+  --line-relaxed: 1.7;
+  --line-loose: 1.8;
+
+  /* === 间距（8 倍数） === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* === 圆角 === */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* === 尺寸 === */
+  --size-icon-sm: 16px;
+  --size-icon: 20px;
+  --size-icon-lg: 24px;
+  --size-button: 48px;
+  --size-button-lg: 56px;
+  --size-tabbar: 56px;
+  --size-topbar: 44px;
+  --size-progress: 6px;
+
+  /* === 安全区（iPhone 底部 Home indicator） === */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+
+  /* === Z-index 层级 === */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-fixed: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+
+  /* === 动效 === */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-emphasis: 600ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasis: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/**
+ * 响应式：根字号动态计算，让 1rem 随屏幕宽度缩放
+ * 基准：375px 设计稿 = 16px 根字号
+ *
+ * 桌面 / 大屏：固定 16px（开饭是移动端应用，桌面访问只做开发调试）
+ * 移动端（≤430px）：按 100vw 动态缩放，模拟真机比例
+ */
+html {
+  font-size: 16px;
+}
+
+@media (max-width: 430px) {
+  html {
+    font-size: calc(100vw / 375 * 16);
+  }
+}
