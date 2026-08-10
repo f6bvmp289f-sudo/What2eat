@@ -101,7 +101,6 @@ async function onSubmit() {
 
     <!-- 顶部品牌区 -->
     <header class="brand">
-      <div class="brand-mark" aria-hidden="true">🍚</div>
       <h1 class="brand-title">开饭</h1>
       <p class="brand-subtitle">随时准备帮你做顿好的</p>
     </header>
@@ -270,13 +269,6 @@ async function onSubmit() {
 .brand {
   text-align: center;
   margin-bottom: var(--space-10);
-}
-
-.brand-mark {
-  font-size: 48px;
-  line-height: 1;
-  margin-bottom: var(--space-3);
-  filter: drop-shadow(0 4px 12px rgba(255, 122, 69, 0.2));
 }
 
 .brand-title {

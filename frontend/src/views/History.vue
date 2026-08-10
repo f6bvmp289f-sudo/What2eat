@@ -141,9 +141,12 @@ function dotClass(ts: number): string {
           class="timeline-item"
           :style="{ animationDelay: `${idx * 80}ms` }"
         >
-          <!-- 时间轴左侧 -->
+          <!-- 时间轴左侧：大椭圆 + 序号 -->
           <div class="timeline-axis" aria-hidden="true">
-            <span class="dot" :class="dotClass(scheme.createdAt)" />
+            <span
+              class="dot"
+              :class="`dot-${dotClass(scheme.createdAt)}`"
+            >{{ idx + 1 }}</span>
             <span v-if="idx < items.length - 1" class="line" />
           </div>
 
@@ -285,6 +288,7 @@ function dotClass(ts: number): string {
   transform: translateY(12px);
   animation: item-enter var(--duration-emphasis) var(--ease-emphasis) forwards;
   margin-bottom: var(--space-5);
+  position: relative; /* 让 ::after 相对 item 定位 */
 }
 
 @keyframes item-enter {
@@ -294,44 +298,59 @@ function dotClass(ts: number): string {
   }
 }
 
-/* 左侧时间轴：圆点 + 连接线 */
+/* 跨越 gap 的虚线：精确连接两个 dot 中心
+   top: 20 = padding-top(4) + ellipse-height/2(16) = 本椭圆中心
+   left: 28 = ellipse-width(56) / 2 = 本椭圆中心
+   height: calc(100% + 16) = timeline-item 高度 + 16(margin-bottom) + 4(下一个 padding) + 16(下一个 dot/2)
+                = 本 dot 中心到下一个 dot 中心的精确距离
+                = H + 36 - 20 = H + 16（其中 H = timeline-item 高度）
+                这样无论 DishCard 多高，line 都精确连接到下一个 dot 中心 */
+.timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 28px;
+  top: 20px;
+  width: 1px;
+  height: calc(100% + 16px);
+  border-left: 1px dashed var(--color-text-tertiary);
+  opacity: 0.5;
+}
+
+/* timeline-axis：仅负责定位 dot */
 .timeline-axis {
-  flex: 0 0 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 6px;
+  flex: 0 0 56px;
+  padding-top: 4px;
 }
 
+/* 椭圆节点 */
 .dot {
-  width: 10px;
-  height: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 32px;
   border-radius: var(--radius-full);
-  background: var(--color-bg-tertiary);
-  border: 2px solid var(--color-bg-secondary);
-  box-shadow: 0 0 0 2px transparent;
-  flex: 0 0 auto;
+  background: rgba(232, 226, 216, 0.6);
+  font-size: var(--text-body);
+  font-weight: var(--font-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
 }
 
-.dot-hot {
-  background: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(255, 122, 69, 0.15);
+.dot-dot-hot {
+  background: rgba(255, 122, 69, 0.18);
+  color: var(--color-primary);
 }
-
-.dot-warm {
-  background: var(--color-primary-light);
+.dot-dot-warm {
+  background: rgba(255, 176, 136, 0.22);
+  color: #C2623A;
 }
-
-.dot-cool {
-  background: var(--color-text-tertiary);
-}
-
-.line {
-  flex: 1;
-  width: 2px;
-  background: var(--color-divider);
-  margin-top: var(--space-1);
-  min-height: 40px;
+.dot-dot-cool {
+  background: rgba(232, 226, 216, 0.6);
+  color: var(--color-text-secondary);
 }
 
 /* 内容区 */
