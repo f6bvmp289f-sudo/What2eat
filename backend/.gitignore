@@ -34,3 +34,9 @@ Thumbs.db
 # 临时文件
 *.tmp
 *.bak
+
+# SQLite 数据
+data/
+*.db
+*.db-shm
+*.db-wal

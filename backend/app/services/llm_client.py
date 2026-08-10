@@ -16,7 +16,12 @@ _async_client: AsyncOpenAI | None = None
 
 
 def init_llm_clients() -> None:
-    """在 FastAPI lifespan 启动时调用，初始化同步/异步 client。"""
+    """在 FastAPI lifespan 启动时调用，初始化同步/异步 client。
+
+    异步客户端额外传 default_headers（Authorization）以兼容 MiniMax 私有端点：
+    openai==1.55.0 的 AsyncOpenAI 在 base_url 指向 api.minimaxi.com 时
+    默认不发出 Authorization header（同步客户端正常），导致服务端返回 1004。
+    """
     global _client, _async_client
     _client = OpenAI(
         api_key=settings.MiniMax_API_KEY,
@@ -27,6 +32,7 @@ def init_llm_clients() -> None:
         api_key=settings.MiniMax_API_KEY,
         base_url=settings.MiniMax_BASE_URL,
         timeout=120.0,
+        default_headers={"Authorization": f"Bearer {settings.MiniMax_API_KEY}"},
     )
     logger.info(f"MiniMax client 初始化完成 base_url={settings.MiniMax_BASE_URL}")
 

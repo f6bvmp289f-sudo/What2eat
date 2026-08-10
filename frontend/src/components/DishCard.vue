@@ -2,15 +2,19 @@
 /**
  * 菜品卡片（左图右文）
  * 来源：docs/Design.md §3.2.1 + PRD §3.2.3.1
- * 用法：Result.vue / Done.vue 共用
+ * 用法：Result.vue / Done.vue / History.vue / Favorites.vue 共用
  */
 import type { Dish } from '@/stores/dish'
 
+import FavoriteBtn from './FavoriteBtn.vue'
+
 interface Props {
   dish: Dish
+  /** 来源 scheme id（收藏需要；不传则收藏的 scheme_id 为 dish.id 占位） */
+  schemeId?: string
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'click', dish: Dish): void
@@ -43,6 +47,9 @@ const emit = defineEmits<{
         <span>{{ dish.estimatedTime }}</span>
       </div>
     </div>
+
+    <!-- 收藏按钮（右上角悬浮） -->
+    <FavoriteBtn :dish="dish" :scheme-id="schemeId || dish.id" />
 
     <!-- 右侧箭头 -->
     <div class="dish-arrow" aria-hidden="true">›</div>

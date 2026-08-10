@@ -405,15 +405,16 @@ photography, fine-dining presentation, no patterns or decorations, fresh and app
 
 | 内容 | 缓存位置 | 失效时机 |
 |------|---------|---------|
-| 生成的菜谱方案 | 后端 Redis + 前端 Pinia | 用户点击"换一批菜" |
-| 菜谱的步骤详情 | 后端 Redis（按 dish_id） | 永不失效（或 LRU 30 天） |
+| 生成的菜谱方案 | 后端 SQLite（users.schemes 表，登录态）+ 前端 localStorage（游客态）+ Redis（短期回写可选） | 游客：清浏览器数据；登录态：用户主动删除或方案被覆盖 |
+| 菜谱的步骤详情 | 跟随方案一起入库（payload_json） | 同上 |
 | 食材识别中间结果 | 不缓存 | 一次性 |
 | 用户输入的原始图片/文本 | 对象存储（OSS） | 长期保存（用于追溯） |
 | 倒计时状态 | localStorage | 倒计时结束 |
 | 用户进度 | localStorage | 完成后归档 |
-| 历史记录（方案列表） | localStorage | 浏览器清数据时清空 |
+| 历史记录 | **游客**：localStorage；**已登录**：服务端 SQLite | 登录后清掉 localStorage 旧数据，改为服务端为唯一来源 |
+| 收藏 | **已登录**：服务端 SQLite（users.favorites 表，含 dish 快照） | 用户主动删除 |
 
-> **MVP 阶段不做登录**，所以用户维度的数据（历史记录、进度、倒计时）全部走 localStorage。后续接入登录后再迁到后端数据库。
+> **MVP 采用"游客 + 懒登录"模式**：主功能（生成菜谱、做菜、结果页）不要求登录；只有访问"我的 / 历史记录 / 收藏"时才要求登录。
 
 **关键原则**：
 - 切回方案页时**不重新请求**，直接展示已缓存的方案。
@@ -424,28 +425,29 @@ photography, fine-dining presentation, no patterns or decorations, fresh and app
 
 ### 3.6 账号与登录
 
-#### 3.6.1 MVP 阶段
-**MVP 不做登录**。用户所有数据（历史记录、当前进度、倒计时状态）保存在浏览器 localStorage。
+#### 3.6.1 MVP 阶段：游客 + 懒登录
+- **登录方式**：用户名 + 密码（≥2 字用户名，≥6 位密码）
+- **主功能完全开放**：首页 / 上传 / 生菜谱 / 做菜 / 结果页 全部不需要登录
+- **懒登录拦截**：访问 `/mine` `/mine/history` `/mine/favorites` 三个页面时要求登录；点击收藏按钮 ★ 但未登录 → 跳登录页（带 redirect，登录成功后跳回）
+- **鉴权方式**：JWT（HS256，7 天有效），服务端 pbkdf2_hmac 哈希密码
+- **数据迁移**：登录成功后清掉 localStorage 旧数据，改为服务端 SQLite 为唯一来源（按用户决策"旧数据丢弃"）
+- **后端存储**：
+  - `users`：账号 + 密码哈希
+  - `schemes`：历史方案（payload_json 存 DishScheme）
+  - `favorites`：收藏（dish_payload_json 存 Dish 快照，删除原方案不影响收藏）
 
-**不登录的代价（提前说清）**：
-- 用户换浏览器、清缓存数据，历史记录和进度会丢失。
-- 倒计时无法跨设备同步（只在本机生效）。
-- 用户首次进入直接是主页，不需要任何认证流程。
+#### 3.6.2 后续接入（v1.1+）
+- 真实短信验证 / 邮箱验证 / 找回密码
+- refresh token（现在过期要重新登录）
+- 收藏分组 / 备注 / 标签
 
-#### 3.6.2 后续接入登录（v1.1+）
-登录方式（**待 v1.1 阶段决策**）：
-- 推荐：**手机号 + 短信验证码**（最符合手机端用户习惯）。
-- 备选：微信 OAuth / 邮箱 + 密码 / 一键登录（运营商网关）。
+#### 3.6.3 数据库设计（MVP）
 
-#### 3.6.3 数据库设计（仅 MVP 后端需要）
-- **PostgreSQL**：MVP 阶段主要用于**服务端 LLM 输出缓存**（菜谱方案、步骤详情）。
-  - 不需要用户表、用户偏好表（无登录）。
-  - 表结构：`schemes`、`dishes`、`dish_steps`、`llm_cache`（用于去重和限流）。
-- **Redis**：
-  - 缓存 LLM 输出（按 hash 键去重）。
-  - 限流（防刷，每个 IP / session 限频）。
-  - 任务队列（如使用异步任务）。
-- **对象存储（阿里云 OSS）**：用户上传的图片。
+- **SQLite**（标准库，无外部依赖）：单一文件 `backend/data/kaifan.db`
+  - `users`：id / username / password_hash / password_salt / created_at
+  - `schemes`：id / user_id / payload_json / created_at（按 user_id + created_at 索引）
+  - `favorites`：id / user_id / scheme_id / dish_id / dish_payload_json / created_at（UNIQUE(user_id, dish_id)）
+- **PostgreSQL / Redis** 留作后续扩展（MVP 不引入）
 
 ---
 

@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 底部 Tab
+ * 两个 Tab：首页 / 我的
+ */
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -7,26 +12,33 @@ const router = useRouter()
 interface TabItem {
   key: string
   label: string
-  /** 路由名，点击跳转 */
-  to?: string
-  /** 是否 MVP 暂未实现 */
-  disabled?: boolean
+  /** 路由路径，点击跳转 */
+  to: string
+  /** 用于判断 active 的 path 前缀 */
+  matchPrefix?: string
 }
 
 const tabs: TabItem[] = [
+  // 首页的 matchPrefix 留空 —— 它只精确匹配 '/'，避免 catch-all 误命中
   { key: 'home', label: '首页', to: '/' },
-  { key: 'favorite', label: '收藏', disabled: true },
-  { key: 'kitchen', label: '厨房', disabled: true },
+  { key: 'mine', label: '我的', to: '/mine', matchPrefix: '/mine' },
 ]
 
-function onTabClick(tab: TabItem) {
-  if (tab.disabled) {
-    // MVP 阶段：提示敬请期待
-    // 实际项目中可换成全局 toast
-    alert('敬请期待～')
-    return
+const activeKey = computed<string>(() => {
+  const path = route.path
+  // 1) 精确匹配优先
+  for (const tab of tabs) {
+    if (tab.to === path) return tab.key
   }
-  if (tab.to && route.path !== tab.to) {
+  // 2) 前缀匹配（用于 mine 匹配 /mine/*）
+  for (const tab of tabs) {
+    if (tab.matchPrefix && path.startsWith(tab.matchPrefix)) return tab.key
+  }
+  return ''
+})
+
+function onTabClick(tab: TabItem) {
+  if (route.path !== tab.to) {
     router.push(tab.to)
   }
 }
@@ -38,8 +50,8 @@ function onTabClick(tab: TabItem) {
       v-for="tab in tabs"
       :key="tab.key"
       class="tab-item"
-      :class="{ active: tab.to === route.path }"
-      :disabled="tab.disabled"
+      :class="{ active: activeKey === tab.key }"
+      type="button"
       @click="onTabClick(tab)"
     >
       <span class="tab-label">{{ tab.label }}</span>
@@ -75,10 +87,6 @@ function onTabClick(tab: TabItem) {
 
 .tab-item:active {
   opacity: 0.6;
-}
-
-.tab-item:disabled {
-  cursor: not-allowed;
 }
 
 .tab-label {

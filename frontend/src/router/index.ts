@@ -5,6 +5,8 @@
  */
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { useAuthStore } from '@/stores/auth'
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -13,6 +15,12 @@ const router = createRouter({
       name: 'home',
       component: () => import('@/views/Home.vue'),
       meta: { title: '开饭' },
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/Login.vue'),
+      meta: { title: '登录', hideTabBar: true, guestOnly: true },
     },
     {
       path: '/upload',
@@ -56,6 +64,25 @@ const router = createRouter({
       component: () => import('@/views/Done.vue'),
       meta: { title: '完成了' },
     },
+    // ===== 我的 =====
+    {
+      path: '/mine',
+      name: 'mine',
+      component: () => import('@/views/Mine.vue'),
+      meta: { title: '我的', requiresAuth: true },
+    },
+    {
+      path: '/mine/history',
+      name: 'mine-history',
+      component: () => import('@/views/History.vue'),
+      meta: { title: '历史记录', requiresAuth: true },
+    },
+    {
+      path: '/mine/favorites',
+      name: 'mine-favorites',
+      component: () => import('@/views/Favorites.vue'),
+      meta: { title: '我的收藏', requiresAuth: true },
+    },
   ],
   // 每次路由切换回到顶部
   scrollBehavior() {
@@ -67,6 +94,32 @@ router.afterEach((to) => {
   if (to.meta?.title) {
     document.title = `${to.meta.title} · 开饭`
   }
+})
+
+// ===== 守卫：访问 requiresAuth 路由时检查登录 =====
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+
+  // 启动期等待 token 恢复
+  if (auth.restoring) {
+    await auth.restoreFromStorage()
+  }
+
+  // 需要登录：未登录 → 跳登录（带 redirect）
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  // 仅游客可访问（如 /login）：已登录 → 跳 redirect 或 /mine
+  if (to.meta.guestOnly && auth.isAuthenticated) {
+    const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/mine'
+    return redirect
+  }
+
+  return true
 })
 
 export default router

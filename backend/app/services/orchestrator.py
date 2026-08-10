@@ -175,6 +175,18 @@ async def stage_image(dish: dict, emit: EmitFn) -> tuple[str, float]:
     url = await generate_dish_image(dish_name, ingredients)
     elapsed = time.time() - t0
 
+    # 拿到 URL 后立即 push 给前端（渐进替换占位图）
+    if url:
+        await emit(
+            ProgressEvent(
+                stage="image",
+                percent=80,
+                message=f"「{dish_name}」配图已生成",
+                dish_id=dish_id,
+                url=url,
+            )
+        )
+
     if not url:
         url = ""
     return url, elapsed

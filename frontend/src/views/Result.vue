@@ -87,6 +87,7 @@ function onExit() {
           v-for="(dish, idx) in dishes"
           :key="dish.id"
           :dish="dish"
+          :scheme-id="dishStore.currentScheme?.id"
           :style="{ animationDelay: `${idx * 150}ms` }"
           class="dish-card-anim"
           @click="onDishClick"

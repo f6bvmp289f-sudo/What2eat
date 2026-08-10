@@ -6,6 +6,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
+import { useAuthStore } from './auth'
+
 export interface DishImage {
   id: string
   url: string         // 本地预览 URL（blob:）
@@ -142,7 +144,26 @@ export const useDishStore = defineStore('dish', () => {
   // === 行为：菜谱方案 ===
   function setScheme(scheme: DishScheme) {
     currentScheme.value = scheme
-    // 加入历史
+
+    const authStore = useAuthStore()
+    if (authStore.isAuthenticated) {
+      // 登录态：写到服务端 + 本地立即反映
+      // 不写 localStorage（避免双源）
+      const idx = history.value.findIndex((s) => s.id === scheme.id)
+      if (idx > -1) {
+        history.value[idx] = scheme
+      } else {
+        history.value.unshift(scheme)
+        if (history.value.length > 50) history.value.pop()
+      }
+      // 异步写服务端，失败静默
+      import('./history').then(({ useHistoryStore }) => {
+        useHistoryStore().addRemote(scheme)
+      })
+      return
+    }
+
+    // 游客态：写 localStorage
     const idx = history.value.findIndex((s) => s.id === scheme.id)
     if (idx > -1) {
       history.value[idx] = scheme
@@ -153,6 +174,51 @@ export const useDishStore = defineStore('dish', () => {
     saveHistory()
   }
 
+  /**
+   * 登录态启动 / 登录成功后调用：
+   * 拉服务端历史替换本地 history，并清掉 localStorage 旧数据（按 PRD 决策）
+   */
+  async function loadRemoteHistory(): Promise<void> {
+    const { useHistoryStore } = await import('./history')
+    const historyStore = useHistoryStore()
+    await historyStore.fetchList()
+    history.value = [...historyStore.remoteList]
+    try {
+      localStorage.removeItem(STORAGE_KEYS.HISTORY)
+    } catch {
+      // 忽略
+    }
+  }
+
+  /** 退出登录时调用：清空历史（保留游客 localStorage 数据也清掉，避免与下次登录混淆） */
+  function clearHistory(): void {
+    history.value = []
+    try {
+      localStorage.removeItem(STORAGE_KEYS.HISTORY)
+    } catch {
+      // 忽略
+    }
+  }
+
+  function removeSchemeFromHistory(schemeId: string): void {
+    const idx = history.value.findIndex((s) => s.id === schemeId)
+    if (idx > -1) {
+      history.value.splice(idx, 1)
+      // 登录态同步服务端
+      const authStore = useAuthStore()
+      if (authStore.isAuthenticated) {
+        import('./history').then(({ useHistoryStore }) => {
+          useHistoryStore().removeRemote(schemeId).catch((e) => {
+            console.warn('删除历史失败', e)
+          })
+        })
+      } else {
+        saveHistory()
+      }
+    }
+  }
+
+  /** 从历史中加载某条到 currentScheme（点历史条目跳 Result 前调用） */
   function loadFromHistory(schemeId: string) {
     const scheme = history.value.find((s) => s.id === schemeId)
     if (scheme) currentScheme.value = scheme
@@ -281,7 +347,10 @@ export const useDishStore = defineStore('dish', () => {
     incrementRefreshCount,
     resetRefreshCount,
     setScheme,
+    removeSchemeFromHistory,
     loadFromHistory,
+    loadRemoteHistory,
+    clearHistory,
     loadHistory,
     addTimer,
     removeTimer,

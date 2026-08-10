@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     MAX_REQUEST_BYTES: int = 20 * 1024 * 1024  # 20MB
 
+    # ===== 阿里云百炼 DashScope（Z-Image-Turbo 云端降级，可选） =====
+    # 留空表示不启用降级，本地 Z-Image 失败时直接返回占位图
+    DASHSCOPE_API_KEY: str = ""
+    DASHSCOPE_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+    # ===== JWT =====
+    # JWT 签名密钥。若为空，main.py 启动时会自动生成并写入 .env（仅首次）。
+    JWT_SECRET: str = ""
+    JWT_EXPIRE_DAYS: int = 7
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
