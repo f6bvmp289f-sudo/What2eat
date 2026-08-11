@@ -73,7 +73,7 @@ eatv.0/
 
 ## 关键设计
 
-- **意图识别**：关键词 + LLM 兜底（不用否定词，图片噪音容忍）
+- **意图识别**：关键词 + LLM 兜底（不用否定词）
 - **方案生成**：主 agent 一次出 1-3 道菜，食材安全阀门（不能编造主要食材）
 - **教程生成**：每步骤拆 1-4 个 substeps，单步单屏
 - **配图生成**：image-01 带 mainIngredients 一起传
@@ -86,15 +86,9 @@ eatv.0/
 |---|---|
 | 1 道菜 | ~17s |
 | 3 道菜 | ~37s |
-| 配图（硬瓶颈）| ~10s/张 |
+| 配图| ~10s/张 |
 
-## 部署到生产
 
-⚠️ **生产部署前必做**：
-1. 在 [MiniMax 控制台](https://platform.minimaxi.com/user-center/basic-information/secret-key) **撤销当前 key**（对话里已泄露）+ 重新生成
-2. 服务器上 `nano backend/.env` 填新 key
-3. 申请 ICP 备案
-4. 配置 HTTPS（`certbot --nginx`）
 
 ## 详细 Spec
 
