@@ -43,11 +43,13 @@ curl -s -m 5 http://127.0.0.1:8000/ready
 echo ""
 
 # ============================================================
-# 3. 前端：pnpm install + build
+# 3. 前端：清理旧 build → pnpm install → pnpm build
 # ============================================================
 echo ""
-echo "=== 4. 前端 pnpm install + build ==="
+echo "=== 4. 前端清理旧 build + pnpm install + build ==="
 cd "$FRONTEND_DIR"
+# 关键：旧 dist 是 www-data 拥有，ubuntu 没权限删除
+sudo rm -rf dist
 sudo -u $APP_USER pnpm install --silent
 sudo -u $APP_USER pnpm run build
 
