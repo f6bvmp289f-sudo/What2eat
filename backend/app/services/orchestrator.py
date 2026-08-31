@@ -1,6 +1,6 @@
 """
 编排器：端到端菜谱生成主流程
-① 意图识别 → ② 主 agent 出方案 → ③ 并行 配图 + 教程 → ④ emit done
+① 意图识别 → ② 概述(菜名清单) → ③ 并行 补全∥教程∥配图 → ④ emit done
 """
 import asyncio
 import json
@@ -23,7 +23,8 @@ from app.services.image_gen import generate_dish_image
 from app.services.intent import check_intent
 from app.services.llm_client import chat_text, parse_json_safely
 from app.services.prompts import (
-    MAIN_AGENT_SYSTEM,
+    DISH_DETAIL_SYSTEM,
+    SCHEME_OVERVIEW_SYSTEM,
     TUTORIAL_AGENT_SYSTEM,
 )
 
@@ -58,13 +59,13 @@ async def stage_intent(req: GenerateRequest, emit: EmitFn) -> tuple[bool, list[s
     return True, ingredients
 
 
-async def stage_main_agent(
+async def stage_overview(
     ingredients: list[str],
     user_text: str,
     emit: EmitFn,
     history_dish_names: list[str] | None = None,
 ) -> dict:
-    """② 主 agent 出方案
+    """② 主 agent 出菜名清单（快速，不含详细字段）
 
     history_dish_names：换一批模式下的"已生成菜名"，拼到 user_msg 让 LLM 避免重复。
     """
@@ -82,36 +83,58 @@ async def stage_main_agent(
     user_msg = "\n".join(user_msg_parts)
 
     raw = await chat_text(
-        system=MAIN_AGENT_SYSTEM,
+        system=SCHEME_OVERVIEW_SYSTEM,
         user=user_msg,
         json_mode=True,
-        temperature=0.8,
-        max_tokens=4096,
-        model=settings.MiniMax_TEXT_MODEL_MAIN,  # 方案生成用 M2.5（更快）
+        temperature=0.7,
+        max_tokens=1200,  # 只出菜名清单，token 需求小
+        model=settings.MiniMax_TEXT_MODEL_MAIN,  # 方案概述用 M2.5（更快）
     )
-    logger.debug(f"主 agent 输出: {raw[:500]}...")
+    logger.debug(f"主 agent 概述输出: {raw[:500]}...")
 
     data = parse_json_safely(raw)
-    # 标准化 dish 字段（前端 Dish 接口）
+    # 标准化 dish 基本字段（详细字段由 stage_detail 补全）
     for i, d in enumerate(data.get("dishes", [])):
         d.setdefault("id", f"dish-{i + 1}")
-        d.setdefault("description", "")
-        d.setdefault("estimatedTime", "")
-        d.setdefault("previewImage", "")
-        d.setdefault("mainIngredients", [])
+        d.setdefault("name", "")
         d.setdefault("taste", "")
         d.setdefault("cookingMethod", "")
-        d.setdefault("difficulty", "")
-        d.setdefault("steps", [])
+        d.setdefault("mainIngredients", [])
 
     await emit(
         ProgressEvent(
             stage="scheme",
             percent=45,
-            message=f"方案已生成（{len(data.get('dishes', []))} 道菜）",
+            message=f"方案已出炉（{len(data.get('dishes', []))} 道菜）",
         )
     )
     return data
+
+
+async def stage_detail(dish: dict) -> tuple[dict, float]:
+    """菜信息补全：description / estimatedTime / difficulty
+
+    放在并行阶段跑，不占主链。返回 (detail, 耗时秒)。
+    """
+    t0 = time.time()
+    user_msg = (
+        f"【菜品】{json.dumps({k: dish.get(k) for k in ('name', 'taste', 'cookingMethod', 'mainIngredients')}, ensure_ascii=False)}\n"
+        f"请输出严格 JSON。"
+    )
+    raw = await chat_text(
+        system=DISH_DETAIL_SYSTEM,
+        user=user_msg,
+        json_mode=True,
+        temperature=0.5,
+        max_tokens=400,
+        model=settings.MiniMax_TEXT_MODEL_MAIN,
+    )
+    data = parse_json_safely(raw)
+    return {
+        "description": data.get("description", ""),
+        "estimatedTime": data.get("estimatedTime", ""),
+        "difficulty": data.get("difficulty", ""),
+    }, time.time() - t0
 
 
 async def stage_tutorial(dish: dict, emit: EmitFn) -> tuple[list[DishStep], float]:
@@ -153,7 +176,7 @@ async def stage_tutorial(dish: dict, emit: EmitFn) -> tuple[list[DishStep], floa
 
 
 async def stage_image(dish: dict, emit: EmitFn) -> tuple[str, float]:
-    """配图 agent：image-01 单张菜品图
+    """配图 agent：z-image-turbo 单张菜品图
 
     返回 (url, 耗时秒)
     """
@@ -196,7 +219,7 @@ async def stage_image(dish: dict, emit: EmitFn) -> tuple[str, float]:
 
 
 async def orchestrate(req: GenerateRequest, emit: EmitFn) -> None:
-    """端到端编排：① 意图 → ② 方案 → ③ 并行 配图 + 教程 → ④ done"""
+    """端到端编排：① 意图 → ② 概述 → ③ 并行 补全∥教程∥配图 → ④ done"""
     started_at = time.time()
     timings: dict[str, float] = {}  # 记录每个 stage 的耗时
 
@@ -207,10 +230,10 @@ async def orchestrate(req: GenerateRequest, emit: EmitFn) -> None:
     if not ok:
         return
 
-    # ② 方案
+    # ② 方案概述（快速出菜名清单）
     t_scheme_start = time.time()
     try:
-        raw_scheme = await stage_main_agent(
+        overview = await stage_overview(
             ingredients, req.text, emit,
             history_dish_names=req.history_dish_names or None,
         )
@@ -219,7 +242,7 @@ async def orchestrate(req: GenerateRequest, emit: EmitFn) -> None:
         # 重试一次（重置 t0，重试完成后 timings 算总耗时）
         t0 = time.time()
         try:
-            raw_scheme = await stage_main_agent(
+            overview = await stage_overview(
                 ingredients, req.text, emit,
                 history_dish_names=req.history_dish_names or None,
             )
@@ -248,40 +271,45 @@ async def orchestrate(req: GenerateRequest, emit: EmitFn) -> None:
     else:
         timings["scheme"] = time.time() - t_scheme_start
 
-    dishes_raw = raw_scheme.get("dishes", [])
-    carb = raw_scheme.get("carbRecommendation", {"name": "米饭", "reason": "经典搭配"})
+    dishes_raw = overview.get("dishes", [])
+    carb = overview.get("carbRecommendation", {"name": "米饭", "reason": "经典搭配"})
 
-    # ③ 并行：配图 + 教程
+    # ③ 并行：每道菜 补全信息 ∥ 教程 ∥ 配图
     t0 = time.time()
 
-    image_tasks = [stage_image(d, emit) for d in dishes_raw]
-    tutorial_tasks = [stage_tutorial(d, emit) for d in dishes_raw]
-
-    image_results_raw, tutorial_results_raw = await asyncio.gather(
-        asyncio.gather(*image_tasks),
-        asyncio.gather(*tutorial_tasks),
-    )
+    per_dish_tasks = [
+        asyncio.gather(
+            stage_detail(d),
+            stage_tutorial(d, emit),
+            stage_image(d, emit),
+        )
+        for d in dishes_raw
+    ]
+    per_dish_results = await asyncio.gather(*per_dish_tasks)
     timings["parallel"] = time.time() - t0
-    # 解包 (value, duration) 元组
-    image_results = [r[0] for r in image_results_raw]
-    image_durations = [r[1] for r in image_results_raw]
-    tutorial_results = [r[0] for r in tutorial_results_raw]
-    tutorial_durations = [r[1] for r in tutorial_results_raw]
+    # 解包 (detail, steps, url) 三元组对应 (dict, 耗时) 元组
+    detail_results = [r[0][0] for r in per_dish_results]
+    detail_durations = [r[0][1] for r in per_dish_results]
+    tutorial_results = [r[1][0] for r in per_dish_results]
+    tutorial_durations = [r[1][1] for r in per_dish_results]
+    image_results = [r[2][0] for r in per_dish_results]
+    image_durations = [r[2][1] for r in per_dish_results]
 
     # ④ 组装 + emit done
     dishes: list[Dish] = []
     for i, d in enumerate(dishes_raw):
+        detail = detail_results[i] if i < len(detail_results) else {}
         dishes.append(
             Dish(
                 id=d.get("id", f"dish-{i + 1}"),
                 name=d.get("name", ""),
-                description=d.get("description", ""),
-                estimatedTime=d.get("estimatedTime", ""),
+                description=detail.get("description", ""),
+                estimatedTime=detail.get("estimatedTime", ""),
                 previewImage=image_results[i] if i < len(image_results) else "",
                 mainIngredients=d.get("mainIngredients", []),
                 taste=d.get("taste", ""),
                 cookingMethod=d.get("cookingMethod", ""),
-                difficulty=d.get("difficulty", ""),
+                difficulty=detail.get("difficulty", ""),
                 steps=tutorial_results[i] if i < len(tutorial_results) else [],
             )
         )
@@ -316,6 +344,8 @@ async def orchestrate(req: GenerateRequest, emit: EmitFn) -> None:
     logger.info(f"  ├─ ① 意图识别:   {timings.get('intent', 0):.2f}s")
     logger.info(f"  ├─ ② 方案生成:   {timings.get('scheme', 0):.2f}s")
     logger.info(f"  └─ ③ 并行阶段:   {timings.get('parallel', 0):.2f}s")
-    for i, (d, img_t, tut_t) in enumerate(zip(dishes, image_durations, tutorial_durations)):
-        logger.info(f"      ├─ {d.name}  配图={img_t:.2f}s  教程={tut_t:.2f}s")
+    for i, (d, img_t, tut_t, det_t) in enumerate(zip(dishes, image_durations, tutorial_durations, detail_durations)):
+        logger.info(
+            f"      ├─ {d.name}  配图={img_t:.2f}s  教程={tut_t:.2f}s  补全={det_t:.2f}s"
+        )
     logger.info("=" * 60)

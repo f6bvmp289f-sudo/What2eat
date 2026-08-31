@@ -78,6 +78,9 @@ async def chat_text(
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
 
+    # 关闭 thinking：M3 支持（跳过推理直接作答，快 6-8 倍）；M2.x 忽略该字段
+    kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+
     response = await client.chat.completions.create(**kwargs)
     return response.choices[0].message.content or ""
 
@@ -113,6 +116,7 @@ async def chat_vision(
         ],
         temperature=temperature,
         max_tokens=max_tokens,
+        extra_body={"thinking": {"type": "disabled"}},
     )
     return response.choices[0].message.content or ""
 

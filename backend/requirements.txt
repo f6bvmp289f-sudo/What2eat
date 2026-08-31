@@ -17,7 +17,7 @@ python-dotenv==1.0.1
 # 日志
 loguru==0.7.2
 
-# HTTP 客户端（用于 MiniMax 私有 API，如 image-01）
+# HTTP 客户端（用于 DashScope z-image-turbo 生图直连 HTTP）
 httpx==0.27.2
 
 # 鉴权（JWT）
